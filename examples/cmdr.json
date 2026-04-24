@@ -1,6 +1,6 @@
 {
 	"trigger": "$",
-	"enterAction": "insert",
+	"enterAction": "send",
 	"commands": [
 		{
 			"id": "git-ship-pr",
@@ -8,8 +8,6 @@
 			"title": "Create branch, commit, push, and open PR",
 			"description": "Use commit and github-pr skills to ship current work.",
 			"tags": ["git", "branch", "commit", "push", "pr", "github"],
-			"defaultAction": "insert",
-			"confirmBeforeSend": true,
 			"prompt": "Please create a new branch for the current changes, use the commit skill to make an appropriate commit, push the branch, and then use the github-pr skill to open a GitHub PR. Keep the scope tight and summarize what you did."
 		},
 		{
@@ -18,7 +16,6 @@
 			"title": "Review PR feedback and fix actionable items",
 			"description": "Triage reviewer feedback, decide what should be fixed, and implement fixes.",
 			"tags": ["review", "pr", "feedback", "karpathy"],
-			"defaultAction": "insert",
 			"prompt": "Please review the PR feedback, triage what is actionable versus not actionable, and work through the fixes. Keep the Karpathy guidelines in mind: think before coding, keep changes surgical, avoid overengineering, and verify with tests or checks where appropriate."
 		}
 	]

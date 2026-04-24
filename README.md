@@ -9,12 +9,10 @@ Use it for prompts you type often, such as shipping a PR or handling review feed
 - Type `$` to open the command picker.
 - Keep typing to filter commands by category, title, tags, description, and prompt text.
 - Use `↑` / `↓` or `ctrl+p` / `ctrl+n` to move through results.
-- Press `Enter` to perform the configured default action. The default is safe: insert into the editor.
-- Press `Tab` to insert the selected command.
+- Press `Enter` to send the selected command immediately.
+- Press `Tab` to insert the selected command without sending.
 - Press `alt+enter` or `ctrl+enter` to send the selected command immediately.
 - Press `Escape` to close the picker.
-
-Commands with `confirmBeforeSend: true` are inserted instead of sent, even if you press the send shortcut.
 
 ## Install
 
@@ -45,7 +43,7 @@ Example `cmdr.json`:
 ```json
 {
 	"trigger": "$",
-	"enterAction": "insert",
+	"enterAction": "send",
 	"commands": [
 		{
 			"id": "git-ship-pr",
@@ -53,8 +51,6 @@ Example `cmdr.json`:
 			"title": "Create branch, commit, push, and open PR",
 			"description": "Use commit and github-pr skills to ship current work.",
 			"tags": ["git", "branch", "commit", "push", "pr", "github"],
-			"defaultAction": "insert",
-			"confirmBeforeSend": true,
 			"prompt": "Please create a new branch for the current changes, use the commit skill to make an appropriate commit, push the branch, and then use the github-pr skill to open a GitHub PR. Keep the scope tight and summarize what you did."
 		},
 		{
@@ -63,7 +59,6 @@ Example `cmdr.json`:
 			"title": "Review PR feedback and fix actionable items",
 			"description": "Triage reviewer feedback, decide what should be fixed, and implement fixes.",
 			"tags": ["review", "pr", "feedback", "karpathy"],
-			"defaultAction": "insert",
 			"prompt": "Please review the PR feedback, triage what is actionable versus not actionable, and work through the fixes. Keep the Karpathy guidelines in mind: think before coding, keep changes surgical, avoid overengineering, and verify with tests or checks where appropriate."
 		}
 	]
@@ -86,7 +81,6 @@ Optional:
 - `description`: shown in the picker
 - `tags`: extra search terms
 - `defaultAction`: `insert` or `send`; overrides top-level `enterAction` for this command
-- `confirmBeforeSend`: if `true`, send shortcuts insert instead
 
 ## Diagnostics
 
@@ -102,4 +96,4 @@ It inserts a small status report into the editor with loaded command count, conf
 
 - The default trigger is `$`. If you also use `pi-skill-searcher`, configure one extension to use a different trigger.
 - `$5` is ignored so normal dollar amounts do not open the picker.
-- The MVP intentionally defaults to insertion before execution to avoid accidental git pushes or PR creation.
+- `Enter` sends immediately by default. Use `Tab` when you want to insert and edit before sending.

@@ -24,7 +24,6 @@ type CmdrCommand = {
 	category?: string;
 	tags: string[];
 	defaultAction?: CmdrAction;
-	confirmBeforeSend: boolean;
 	source: CmdrSource;
 };
 
@@ -48,7 +47,7 @@ type TriggerMatch = {
 
 const MAX_RESULTS = 8;
 const DEFAULT_TRIGGER = "$";
-const DEFAULT_ENTER_ACTION: CmdrAction = "insert";
+const DEFAULT_ENTER_ACTION: CmdrAction = "send";
 
 const DEFAULT_COMMANDS: CmdrCommand[] = [
 	{
@@ -57,8 +56,6 @@ const DEFAULT_COMMANDS: CmdrCommand[] = [
 		title: "Create branch, commit, push, and open PR",
 		description: "Use commit and github-pr skills to ship current work.",
 		tags: ["git", "branch", "commit", "push", "pr", "github"],
-		defaultAction: "insert",
-		confirmBeforeSend: true,
 		source: "default",
 		prompt:
 			"Please create a new branch for the current changes, use the commit skill to make an appropriate commit, push the branch, and then use the github-pr skill to open a GitHub PR. Keep the scope tight and summarize what you did.",
@@ -70,8 +67,6 @@ const DEFAULT_COMMANDS: CmdrCommand[] = [
 		description:
 			"Triage reviewer feedback, decide what should be fixed, and implement fixes.",
 		tags: ["review", "pr", "feedback", "karpathy"],
-		defaultAction: "insert",
-		confirmBeforeSend: false,
 		source: "default",
 		prompt:
 			"Please review the PR feedback, triage what is actionable versus not actionable, and work through the fixes. Keep the Karpathy guidelines in mind: think before coding, keep changes surgical, avoid overengineering, and verify with tests or checks where appropriate.",
@@ -135,7 +130,6 @@ function validateCommand(
 		title,
 		prompt,
 		tags: readStringArray(value.tags),
-		confirmBeforeSend: value.confirmBeforeSend === true,
 		source,
 	};
 
@@ -353,7 +347,6 @@ function formatTitle(command: CmdrCommand): string {
 class CmdrEditor extends CustomEditor {
 	private readonly editorTheme: EditorTheme;
 	private readonly getSettings: () => CmdrSettings;
-	private readonly notify: (message: string) => void;
 	private activeTrigger: TriggerMatch | null = null;
 	private selectedIndex = 0;
 	private visibleMatches: CmdrCommand[] = [];
@@ -364,12 +357,10 @@ class CmdrEditor extends CustomEditor {
 		theme: EditorTheme,
 		keybindings: KeybindingsManager,
 		getSettings: () => CmdrSettings,
-		notify: (message: string) => void,
 	) {
 		super(tui, theme, keybindings);
 		this.editorTheme = theme;
 		this.getSettings = getSettings;
-		this.notify = notify;
 		this.refreshCommandMenu();
 	}
 
@@ -423,12 +414,9 @@ class CmdrEditor extends CustomEditor {
 			currentText.slice(0, this.activeTrigger.start) +
 			selected.prompt +
 			currentText.slice(this.activeTrigger.end);
-		const effectiveAction =
-			action === "send" && selected.confirmBeforeSend ? "insert" : action;
-
 		this.dismissedTriggerKey = undefined;
 
-		if (effectiveAction === "send") {
+		if (action === "send") {
 			const submittedText = nextText.trim();
 			this.setText("");
 			this.refreshCommandMenu();
@@ -438,11 +426,6 @@ class CmdrEditor extends CustomEditor {
 
 		this.setText(nextText);
 		this.refreshCommandMenu();
-		if (action === "send" && selected.confirmBeforeSend) {
-			this.notify(
-				`Inserted "${formatTitle(selected)}" instead of sending because confirmBeforeSend is enabled.`,
-			);
-		}
 	}
 
 	override handleInput(data: string): void {
@@ -594,9 +577,7 @@ export default function cmdrExtension(pi: ExtensionAPI): void {
 
 		ctx.ui.setEditorComponent(
 			(tui, theme, keybindings) =>
-				new CmdrEditor(tui, theme, keybindings, getSettings, (message) =>
-					ctx.ui.notify(message, "warning"),
-				),
+				new CmdrEditor(tui, theme, keybindings, getSettings),
 		);
 
 		if (settings.errors.length > 0) {
