@@ -83,15 +83,14 @@ const DEFAULT_COMMANDS: CmdrCommand[] = [
 			"Please review the PR feedback, triage what is actionable versus not actionable, and work through the fixes. Keep the Karpathy guidelines in mind: think before coding, keep changes surgical, avoid overengineering, and verify with tests or checks where appropriate.",
 	},
 	{
-		id: "main",
-		category: "Review",
-		title: "Review PR feedback and fix actionable items",
-		description:
-			"Triage reviewer feedback, decide what should be fixed, and implement fixes.",
-		tags: ["review", "pr", "feedback", "karpathy"],
+		id: "main-commit-and-push",
+		category: "Push",
+		title: "Commit and Push directly on Main cause yolo.",
+		description: "Commit and Push on Main.",
+		tags: ["commit", "push"],
 		source: "default",
 		prompt:
-			"Please review the PR feedback, triage what is actionable versus not actionable, and work through the fixes. Keep the Karpathy guidelines in mind: think before coding, keep changes surgical, avoid overengineering, and verify with tests or checks where appropriate.",
+			"Please create a nice commit use the commit skill. then push directly on the active branch. make sure to not commit any secrets, build or temp files.",
 	},
 ];
 
