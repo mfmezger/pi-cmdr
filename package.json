@@ -1,7 +1,6 @@
 {
 	"name": "pi-cmdr",
 	"version": "0.1.0",
-	"private": true,
 	"type": "module",
 	"description": "Command picker extension for the Pi coding agent.",
 	"keywords": [
@@ -32,5 +31,21 @@
 		"extensions": [
 			"./src/index.ts"
 		]
-	}
+	},
+	"license": "MIT",
+	"author": "mfmezger",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/mfmezger/pi-cmdr.git"
+	},
+	"homepage": "https://github.com/mfmezger/pi-cmdr#readme",
+	"bugs": {
+		"url": "https://github.com/mfmezger/pi-cmdr/issues"
+	},
+	"files": [
+		"README.md",
+		"LICENSE",
+		"src",
+		"examples"
+	]
 }

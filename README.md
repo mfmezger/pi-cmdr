@@ -16,6 +16,14 @@ Use it for prompts you type often, such as shipping a PR or handling review feed
 
 ## Install
 
+From npm:
+
+```bash
+pi install npm:pi-cmdr
+```
+
+From GitHub:
+
 ```bash
 pi install git:github.com/mfmezger/pi-cmdr
 ```
