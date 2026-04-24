@@ -51,7 +51,7 @@ const DEFAULT_ENTER_ACTION: CmdrAction = "send";
 
 const DEFAULT_COMMANDS: CmdrCommand[] = [
 	{
-		id: "git-ship-pr",
+		id: "github-ship-pr",
 		category: "Git",
 		title: "Create branch, commit, push, and open PR",
 		description: "Use commit and github-pr skills to ship current work.",
