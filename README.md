@@ -38,50 +38,33 @@ pi -e ./src/index.ts
 
 ## Configuration
 
-`pi-cmdr` loads commands from:
+`pi-cmdr` loads commands from built-in defaults, then merges config files in this order:
 
-1. Built-in defaults
-2. `~/.pi/agent/cmdr.json`
-3. `.pi/cmdr.json`
+1. Global legacy files: `~/.pi/agent/cmdr.json`, `~/.pi/agent/cmdr.yaml`, `~/.pi/agent/cmdr.yml`
+2. Global extension-scoped files: `~/.pi/agent/extensions/cmdr.json`, `~/.pi/agent/extensions/cmdr.yaml`, `~/.pi/agent/extensions/cmdr.yml`
+3. Project legacy files: `.pi/cmdr.json`, `.pi/cmdr.yaml`, `.pi/cmdr.yml`
+4. Project extension-scoped files: `.pi/extensions/cmdr.json`, `.pi/extensions/cmdr.yaml`, `.pi/extensions/cmdr.yml`
 
-Commands are merged by `id`; project commands override global commands, and global commands override built-in defaults.
+Commands are merged by `id`; later files override earlier files. In practice, project commands override global commands, and global commands override built-in defaults. YAML is recommended for hand-edited command files; JSON remains supported for compatibility.
 
-Example `cmdr.json`:
+Example `cmdr.yaml`:
 
-```json
-{
-	"trigger": "$",
-	"enterAction": "send",
-	"commands": [
-		{
-			"id": "git-ship-pr",
-			"category": "Git",
-			"title": "Create branch, commit, push, and open PR",
-			"description": "Use commit and github-pr skills to ship current work.",
-			"tags": ["git", "branch", "commit", "push", "pr", "github"],
-			"prompt": "Please create a new branch for the current changes, use the commit skill to make an appropriate commit, push the branch, and then use the github-pr skill to open a GitHub PR. Keep the scope tight and summarize what you did."
-		},
-		{
-			"id": "github-feedback",
-			"category": "GitHub",
-			"title": "GitHub feedback",
-			"description": "Use the github-pr-feedback skill to triage current PR feedback into fix/no-fix tables.",
-			"tags": ["github", "pr", "feedback", "review", "triage", "skill"],
-			"prompt": "Please use the github-pr-feedback skill to triage GitHub PR feedback for the current branch. Prefer pasted feedback if I provided any; otherwise use gh to inspect the PR for the current branch, including review comments, inline review threads, resolved comments, latest reviews, files, and failed checks when relevant. Produce the required two markdown tables: Does Not Need To Be Fixed and Should Be Fixed, then a concise Summary with counts and the highest-priority fix. Keep the Karpathy guidelines in mind and do not make code changes yet; ask me whether to fix the Should Be Fixed items after the report."
-		},
-		{
-			"id": "review-pr-feedback",
-			"category": "Review",
-			"title": "Review PR feedback and fix actionable items",
-			"description": "Triage reviewer feedback, decide what should be fixed, and implement fixes.",
-			"tags": ["review", "pr", "feedback", "karpathy"],
-			"prompt": "Please review the PR feedback, triage what is actionable versus not actionable, and work through the fixes. Keep the Karpathy guidelines in mind: think before coding, keep changes surgical, avoid overengineering, and verify with tests or checks where appropriate."
-		}
-	]
-}
+```yaml
+trigger: $
+enterAction: send
+commands:
+  - id: git-ship-pr
+    category: Git
+    title: Create branch, commit, push, and open PR
+    description: Use commit and github-pr skills to ship current work.
+    tags: [git, branch, commit, push, pr, github]
+    prompt: >-
+      Please create a new branch for the current changes, use the commit skill to
+      make an appropriate commit, push the branch, and then use the github-pr
+      skill to open a GitHub PR. Keep the scope tight and summarize what you did.
 ```
 
-See [`examples/cmdr.json`](examples/cmdr.json) for a copyable config.
+See [`examples/cmdr.yaml`](examples/cmdr.yaml) for a copyable YAML config. The older [`examples/cmdr.json`](examples/cmdr.json) format is still supported.
 
 ## Command fields
 
