@@ -215,7 +215,10 @@ function loadSettings(cwd: string): CmdrSettings {
 			...globalConfigs.flatMap((config) => config.errors),
 			...projectConfigs.flatMap((config) => config.errors),
 		],
-		configPaths: { global: globalPaths, project: projectPaths },
+		configPaths: {
+			global: globalPaths.filter((path) => existsSync(path)),
+			project: projectPaths.filter((path) => existsSync(path)),
+		},
 	};
 }
 
