@@ -105,6 +105,7 @@ function validateCommand(
 }
 
 type LoadedConfig = {
+	path: string;
 	raw?: Record<string, unknown>;
 	commands: CmdrCommand[];
 	errors: string[];
@@ -126,26 +127,35 @@ function parseConfig(path: string): unknown {
 	return path.endsWith(".json") ? JSON.parse(content) : parseYaml(content);
 }
 
-function loadConfigFile(path: string, source: CmdrSource): LoadedConfig {
-	if (!existsSync(path)) return { commands: [], errors: [] };
+function loadConfigFile(
+	path: string,
+	source: CmdrSource,
+): LoadedConfig | undefined {
+	if (!existsSync(path)) return undefined;
 
 	let parsed: unknown;
 	try {
 		parsed = parseConfig(path);
 	} catch (error) {
 		return {
+			path,
 			commands: [],
 			errors: [`Failed to parse ${path}: ${String(error)}`],
 		};
 	}
 
 	if (!isRecord(parsed)) {
-		return { commands: [], errors: [`${path} must contain a config object`] };
+		return {
+			path,
+			commands: [],
+			errors: [`${path} must contain a config object`],
+		};
 	}
 
 	const commandsValue = parsed.commands;
 	if (commandsValue !== undefined && !Array.isArray(commandsValue)) {
 		return {
+			path,
 			raw: parsed,
 			commands: [],
 			errors: [`${path}: commands must be an array`],
@@ -162,7 +172,13 @@ function loadConfigFile(path: string, source: CmdrSource): LoadedConfig {
 		return result.command ? [result.command] : [];
 	});
 
-	return { raw: parsed, commands, errors };
+	return { path, raw: parsed, commands, errors };
+}
+
+function isLoadedConfig(
+	config: LoadedConfig | undefined,
+): config is LoadedConfig {
+	return config !== undefined;
 }
 
 function getConfigValue(configs: LoadedConfig[], key: string): unknown {
@@ -176,12 +192,12 @@ function getConfigValue(configs: LoadedConfig[], key: string): unknown {
 function loadSettings(cwd: string): CmdrSettings {
 	const globalPaths = getConfigPaths(getAgentDir());
 	const projectPaths = getConfigPaths(join(cwd, ".pi"));
-	const globalConfigs = globalPaths.map((path) =>
-		loadConfigFile(path, "global"),
-	);
-	const projectConfigs = projectPaths.map((path) =>
-		loadConfigFile(path, "project"),
-	);
+	const globalConfigs = globalPaths
+		.map((path) => loadConfigFile(path, "global"))
+		.filter(isLoadedConfig);
+	const projectConfigs = projectPaths
+		.map((path) => loadConfigFile(path, "project"))
+		.filter(isLoadedConfig);
 	const byId = new Map<string, CmdrCommand>();
 
 	for (const command of DEFAULT_COMMANDS) byId.set(command.id, command);
@@ -216,8 +232,8 @@ function loadSettings(cwd: string): CmdrSettings {
 			...projectConfigs.flatMap((config) => config.errors),
 		],
 		configPaths: {
-			global: globalPaths.filter((path) => existsSync(path)),
-			project: projectPaths.filter((path) => existsSync(path)),
+			global: globalConfigs.map((config) => config.path),
+			project: projectConfigs.map((config) => config.path),
 		},
 	};
 }
