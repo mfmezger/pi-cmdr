@@ -47,5 +47,8 @@
 		"LICENSE",
 		"src",
 		"examples"
-	]
+	],
+	"dependencies": {
+		"yaml": "^2.8.3"
+	}
 }

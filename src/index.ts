@@ -12,31 +12,14 @@ import {
 	type TUI,
 	truncateToWidth,
 } from "@mariozechner/pi-tui";
-
-type CmdrAction = "insert" | "send";
-type CmdrSource = "default" | "global" | "project";
-
-type CmdrCommand = {
-	id: string;
-	title: string;
-	prompt: string;
-	description?: string;
-	category?: string;
-	tags: string[];
-	defaultAction?: CmdrAction;
-	source: CmdrSource;
-};
-
-type CmdrSettings = {
-	trigger: string;
-	enterAction: CmdrAction;
-	commands: CmdrCommand[];
-	errors: string[];
-	configPaths: {
-		global: string;
-		project: string;
-	};
-};
+import { parse as parseYaml } from "yaml";
+import { DEFAULT_COMMANDS } from "./config/default-commands.js";
+import type {
+	CmdrAction,
+	CmdrCommand,
+	CmdrSettings,
+	CmdrSource,
+} from "./types.js";
 
 type TriggerMatch = {
 	start: number;
@@ -48,51 +31,6 @@ type TriggerMatch = {
 const MAX_RESULTS = 8;
 const DEFAULT_TRIGGER = "$";
 const DEFAULT_ENTER_ACTION: CmdrAction = "send";
-
-const DEFAULT_COMMANDS: CmdrCommand[] = [
-	{
-		id: "github-ship-pr",
-		category: "Git",
-		title: "Create branch, commit, push, and open PR",
-		description: "Use commit and github-pr skills to ship current work.",
-		tags: ["git", "branch", "commit", "push", "pr", "github"],
-		source: "default",
-		prompt:
-			"Please create a new branch for the current changes, use the commit skill to make an appropriate commit, push the branch, and then use the github-pr skill to open a GitHub PR. Keep the scope tight and summarize what you did.",
-	},
-	{
-		id: "github-feedback",
-		category: "GitHub",
-		title: "GitHub feedback",
-		description:
-			"Use the github-pr-feedback skill to triage current PR feedback into fix/no-fix tables.",
-		tags: ["github", "pr", "feedback", "review", "triage", "skill"],
-		source: "default",
-		prompt:
-			"Please use the github-pr-feedback skill to triage GitHub PR feedback for the current branch. Prefer pasted feedback if I provided any; otherwise use gh to inspect the PR for the current branch, including review comments, inline review threads, resolved comments, latest reviews, files, and failed checks when relevant. Produce the required two markdown tables: Does Not Need To Be Fixed and Should Be Fixed, then a concise Summary with counts and the highest-priority fix. Keep the Karpathy guidelines in mind and do not make code changes yet; ask me whether to fix the Should Be Fixed items after the report.",
-	},
-	{
-		id: "review-pr-feedback",
-		category: "Review",
-		title: "Review PR feedback and fix actionable items",
-		description:
-			"Triage reviewer feedback, decide what should be fixed, and implement fixes.",
-		tags: ["review", "pr", "feedback", "karpathy"],
-		source: "default",
-		prompt:
-			"Please review the PR feedback, triage what is actionable versus not actionable, and work through the fixes. Keep the Karpathy guidelines in mind: think before coding, keep changes surgical, avoid overengineering, and verify with tests or checks where appropriate.",
-	},
-	{
-		id: "main-commit-and-push",
-		category: "Push",
-		title: "Commit and Push directly on Main cause yolo.",
-		description: "Commit and Push on Main.",
-		tags: ["commit", "push"],
-		source: "default",
-		prompt:
-			"Please create a nice commit use the commit skill. then push directly on the active branch. make sure to not commit any secrets, build or temp files.",
-	},
-];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -166,33 +104,58 @@ function validateCommand(
 	return { command };
 }
 
-function loadConfigFile(
-	path: string,
-	source: CmdrSource,
-): {
+type LoadedConfig = {
+	path: string;
 	raw?: Record<string, unknown>;
 	commands: CmdrCommand[];
 	errors: string[];
-} {
-	if (!existsSync(path)) return { commands: [], errors: [] };
+};
+
+function getConfigPaths(baseDir: string): string[] {
+	return [
+		join(baseDir, "cmdr.json"),
+		join(baseDir, "cmdr.yaml"),
+		join(baseDir, "cmdr.yml"),
+		join(baseDir, "extensions", "cmdr.json"),
+		join(baseDir, "extensions", "cmdr.yaml"),
+		join(baseDir, "extensions", "cmdr.yml"),
+	];
+}
+
+function parseConfig(path: string): unknown {
+	const content = readFileSync(path, "utf8");
+	return path.endsWith(".json") ? JSON.parse(content) : parseYaml(content);
+}
+
+function loadConfigFile(
+	path: string,
+	source: CmdrSource,
+): LoadedConfig | undefined {
+	if (!existsSync(path)) return undefined;
 
 	let parsed: unknown;
 	try {
-		parsed = JSON.parse(readFileSync(path, "utf8"));
+		parsed = parseConfig(path);
 	} catch (error) {
 		return {
+			path,
 			commands: [],
 			errors: [`Failed to parse ${path}: ${String(error)}`],
 		};
 	}
 
 	if (!isRecord(parsed)) {
-		return { commands: [], errors: [`${path} must contain a JSON object`] };
+		return {
+			path,
+			commands: [],
+			errors: [`${path} must contain a config object`],
+		};
 	}
 
 	const commandsValue = parsed.commands;
 	if (commandsValue !== undefined && !Array.isArray(commandsValue)) {
 		return {
+			path,
 			raw: parsed,
 			commands: [],
 			errors: [`${path}: commands must be an array`],
@@ -209,36 +172,69 @@ function loadConfigFile(
 		return result.command ? [result.command] : [];
 	});
 
-	return { raw: parsed, commands, errors };
+	return { path, raw: parsed, commands, errors };
+}
+
+function isLoadedConfig(
+	config: LoadedConfig | undefined,
+): config is LoadedConfig {
+	return config !== undefined;
+}
+
+function getConfigValue(configs: LoadedConfig[], key: string): unknown {
+	for (let index = configs.length - 1; index >= 0; index--) {
+		const raw = configs[index]?.raw;
+		if (raw && key in raw) return raw[key];
+	}
+	return undefined;
 }
 
 function loadSettings(cwd: string): CmdrSettings {
-	const globalPath = join(getAgentDir(), "cmdr.json");
-	const projectPath = join(cwd, ".pi", "cmdr.json");
-	const globalConfig = loadConfigFile(globalPath, "global");
-	const projectConfig = loadConfigFile(projectPath, "project");
+	const globalPaths = getConfigPaths(getAgentDir());
+	const projectPaths = getConfigPaths(join(cwd, ".pi"));
+	const globalConfigs = globalPaths
+		.map((path) => loadConfigFile(path, "global"))
+		.filter(isLoadedConfig);
+	const projectConfigs = projectPaths
+		.map((path) => loadConfigFile(path, "project"))
+		.filter(isLoadedConfig);
 	const byId = new Map<string, CmdrCommand>();
 
 	for (const command of DEFAULT_COMMANDS) byId.set(command.id, command);
-	for (const command of globalConfig.commands) byId.set(command.id, command);
-	for (const command of projectConfig.commands) byId.set(command.id, command);
+	for (const config of globalConfigs) {
+		for (const command of config.commands) byId.set(command.id, command);
+	}
+	for (const config of projectConfigs) {
+		for (const command of config.commands) byId.set(command.id, command);
+	}
 
+	const globalTrigger = getConfigValue(globalConfigs, "trigger");
+	const projectTrigger = getConfigValue(projectConfigs, "trigger");
 	const trigger = normalizeTrigger(
-		projectConfig.raw?.trigger,
-		normalizeTrigger(globalConfig.raw?.trigger, DEFAULT_TRIGGER),
+		projectTrigger,
+		normalizeTrigger(globalTrigger, DEFAULT_TRIGGER),
 	);
-	const enterAction = isAction(projectConfig.raw?.enterAction)
-		? projectConfig.raw.enterAction
-		: isAction(globalConfig.raw?.enterAction)
-			? globalConfig.raw.enterAction
+
+	const globalEnterAction = getConfigValue(globalConfigs, "enterAction");
+	const projectEnterAction = getConfigValue(projectConfigs, "enterAction");
+	const enterAction = isAction(projectEnterAction)
+		? projectEnterAction
+		: isAction(globalEnterAction)
+			? globalEnterAction
 			: DEFAULT_ENTER_ACTION;
 
 	return {
 		trigger,
 		enterAction,
 		commands: [...byId.values()].sort(compareCommands),
-		errors: [...globalConfig.errors, ...projectConfig.errors],
-		configPaths: { global: globalPath, project: projectPath },
+		errors: [
+			...globalConfigs.flatMap((config) => config.errors),
+			...projectConfigs.flatMap((config) => config.errors),
+		],
+		configPaths: {
+			global: globalConfigs.map((config) => config.path),
+			project: projectConfigs.map((config) => config.path),
+		},
 	};
 }
 
@@ -623,8 +619,10 @@ export default function cmdrExtension(pi: ExtensionAPI): void {
 				`pi-cmdr: ${settings.commands.length} commands loaded`,
 				`trigger: ${settings.trigger}`,
 				`enterAction: ${settings.enterAction}`,
-				`global: ${settings.configPaths.global}`,
-				`project: ${settings.configPaths.project}`,
+				"global config paths:",
+				...settings.configPaths.global.map((path) => `- ${path}`),
+				"project config paths:",
+				...settings.configPaths.project.map((path) => `- ${path}`),
 			];
 
 			if (settings.errors.length > 0) {
